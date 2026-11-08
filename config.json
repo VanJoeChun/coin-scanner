@@ -1,8 +1,8 @@
 {
   "_설명": "숫자만 바꾸면 됩니다. fee_pct_per_side 는 본인 코인베이스 수수료 등급(지정가=maker, 시장가=taker)으로 꼭 바꾸세요.",
 
-  "account_usd": 1000,
-  "risk_per_trade_pct": 1.0,
+  "account_usd": 400,
+  "risk_per_trade_pct": 5.0,
   "max_position_pct": 25,
   "fee_pct_per_side": 0.6,
   "slippage_pct": 0.05,

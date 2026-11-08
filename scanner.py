@@ -238,6 +238,8 @@ class Scanner:
                     risk = entry_ref - stop
                     if risk <= 0 or price - entry_ref > 0.5 * risk:      # 이미 많이 올라 추격 금지
                         continue
+                    if (price - stop) / price * 100 > cfg.get("max_risk_pct", 6.0):   # 손절폭이 너무 넓은 신호 제외(백테스트와 같은 기준)
+                        continue
                     sigs.append(self._signal_row(p, sid, meta, t, price, entry_ref, stop, r, x, strat_score, reg))
                 elif bool(o["watch"].iloc[-1]) and not pd.isna(o["trigger"].iloc[-1]):
                     trig = float(o["trigger"].iloc[-1])
