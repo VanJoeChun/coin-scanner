@@ -1,0 +1,51 @@
+{
+  "_설명": "숫자만 바꾸면 됩니다. fee_pct_per_side 는 본인 코인베이스 수수료 등급(지정가=maker, 시장가=taker)으로 꼭 바꾸세요.",
+
+  "account_usd": 1000,
+  "risk_per_trade_pct": 1.0,
+  "max_position_pct": 25,
+  "fee_pct_per_side": 0.6,
+  "slippage_pct": 0.05,
+
+  "quote": "USD",
+  "exclude_stablecoins": true,
+  "exclude_products": [],
+  "min_24h_volume_usd": 500000,
+
+  "live_bars": 300,
+  "fresh_bars": 2,
+  "htf_refresh_min": 30,
+  "backtest_top_n": 30,
+  "backtest_days": 3,
+  "backtest_refresh_min": 60,
+  "orb_top_n": 10,
+  "orb_backtest_days": 7,
+  "max_hold_bars": 96,
+  "min_risk_pct": 0.25,
+  "max_risk_pct": 6.0,
+  "regime_weight": 0.15,
+  "max_picks": 5,
+
+  "requests_per_sec": 8,
+  "threads": 8,
+  "auto_scan_minutes": 5,
+  "port": 8765,
+
+  "enabled_strategies": [],
+
+  "params": {
+    "qullamaggie_box": {"box_len": 12, "box_atr": 4.0, "vol_mult": 2.0},
+    "adam_khoo": {"box_len": 6, "box_atr": 3.0},
+    "hma_retest": {"dot_window": 24, "swing": 12},
+    "emmanuel_squeeze": {"max_gap_pct": 0.003, "slope_bars": 12},
+    "trader_lee_cci": {"vol_mult": 1.5},
+    "ross_rsi_db": {"window": 30, "tp_r": 3.0},
+    "bollinger_mfi": {"mfi_min": 85},
+    "david_paul_macd": {"band_k": 0.5, "tp_r": 1.0},
+    "testa_pullback": {"tp1_r": 1.0},
+    "fib_golden": {"window": 72},
+    "darvas_box": {"box_len": 20, "box_atr": 4.0},
+    "vwap_1to3": {"down_bars": 4, "tp1_r": 3.0},
+    "orb_open": {"tp_r": 2.0, "window_end_min": 660}
+  }
+}

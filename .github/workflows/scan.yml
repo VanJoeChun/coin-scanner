@@ -1,0 +1,39 @@
+name: hourly-scan
+
+on:
+  schedule:
+    - cron: "7 * * * *"      # 매시 07분 (정각은 GitHub가 혼잡해 지연이 큼)
+  workflow_dispatch: {}       # Actions 탭에서 'Run workflow' 버튼으로 수동 실행
+
+permissions:
+  contents: write             # 중복 알림 방지 기록(results/notified.json)을 저장소에 저장
+
+concurrency:
+  group: hourly-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Scan and notify
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_MIN_GRADE: ${{ vars.TELEGRAM_MIN_GRADE }}
+          ACCOUNT_USD: ${{ secrets.ACCOUNT_USD }}
+          FEE_PCT_PER_SIDE: ${{ vars.FEE_PCT_PER_SIDE }}
+        run: python hourly.py
+      - name: Save notification state
+        run: |
+          git config user.name "scanner-bot"
+          git config user.email "scanner-bot@users.noreply.github.com"
+          git add -f results/notified.json 2>/dev/null || true
+          git diff --cached --quiet || (git commit -m "update notified state" && git push)

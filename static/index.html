@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>코인 데이트레이딩 스캐너</title>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+:root{--bg:#0f1115;--panel:#171a21;--line:#262b36;--text:#e6e8ee;--mute:#8b93a7;--up:#22c55e;--down:#ef4444;--acc:#60a5fa;--warn:#f59e0b}
+@media (prefers-color-scheme: light){:root{--bg:#f6f7f9;--panel:#fff;--line:#e3e6ec;--text:#16181d;--mute:#667085;--acc:#2563eb}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI",sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+h1{font-size:17px;margin:0}
+h2{font-size:15px;margin:0 0 10px}
+main{max-width:1280px;margin:0 auto;padding:16px 20px 60px;display:grid;gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+.mute{color:var(--mute)} .up{color:var(--up)} .down{color:var(--down)} .warn{color:var(--warn)}
+button{background:var(--acc);color:#fff;border:0;border-radius:7px;padding:8px 14px;font-weight:600;cursor:pointer}
+button.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+button:disabled{opacity:.5;cursor:default}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child,th.l,td.l{text-align:left}
+th{color:var(--mute);font-weight:500;font-size:12px}
+tbody tr{cursor:pointer} tbody tr:hover{background:rgba(127,127,127,.08)}
+.scroll{overflow-x:auto}
+.pill{display:inline-block;padding:1px 7px;border-radius:99px;font-size:11px;border:1px solid var(--line);color:var(--mute);margin-left:4px}
+.pill.w{color:var(--warn);border-color:var(--warn)}
+.big{font-size:22px;font-weight:700}
+.kv{display:flex;flex-wrap:wrap;gap:18px;margin-top:8px}
+.kv div span{display:block;font-size:12px;color:var(--mute)}
+.bar{height:6px;background:var(--line);border-radius:4px;overflow:hidden;width:220px}
+.bar i{display:block;height:100%;background:var(--acc);width:0}
+#chartBox{display:none}
+#chart{height:420px}
+.ctrl{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:13px}
+a{color:var(--acc)}
+.banner{border-left:4px solid var(--warn);padding:10px 12px;background:rgba(245,158,11,.08);border-radius:6px}
+footer{font-size:12px;color:var(--mute)}
+.picks{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.pk{border:1px solid var(--line);border-radius:10px;padding:12px;cursor:pointer}
+.pk:hover{border-color:var(--acc)}
+.pk .top{display:flex;justify-content:space-between;align-items:center}
+.grade{font-weight:800;border-radius:6px;padding:1px 8px;font-size:13px;color:#fff}
+.gA{background:#16a34a}.gB{background:#2563eb}.gC{background:#a16207}.gD{background:#6b7280}
+.pk ul{margin:6px 0 0;padding-left:16px;font-size:12px}
+.pk li.r{color:var(--warn)}
+.pk .row{display:flex;justify-content:space-between;font-size:13px;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>코인베이스 현물 데이트레이딩 스캐너</h1><div class="mute" id="sub">매매법아카이브 13개 영상 → 5분봉 + 1시간 추세</div></div>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <div><div id="step" class="mute" style="font-size:12px">대기</div><div class="bar"><i id="prog"></i></div></div>
+    <button id="btnScan">지금 스캔</button>
+    <button id="btnAuto" class="ghost">자동: -</button>
+    <button id="btnNoti" class="ghost">알림 켜기</button>
+  </div>
+</header>
+<main>
+  <div id="warn" class="banner" style="display:none"></div>
+  <section class="card">
+    <h2>지금 매수 후보 TOP 5 <span class="mute" id="pickTime"></span></h2>
+    <div id="verdict" style="margin-bottom:10px">스캔 결과를 기다리는 중…</div>
+    <div id="picks" class="picks"></div>
+  </section>
+  <div class="grid2">
+    <section class="card">
+      <h2>오늘의 추천 매매법</h2>
+      <div id="pick" class="mute">첫 스캔 중입니다… (전체 코인이라 1~3분 걸립니다)</div>
+    </section>
+    <section class="card">
+      <h2>시장 국면</h2>
+      <div id="regime" class="mute">-</div>
+    </section>
+  </div>
+
+  <section class="card" id="chartBox">
+    <div class="ctrl"><b id="chartTitle"></b><span class="mute" id="chartInfo"></span><button class="ghost" onclick="closeChart()">닫기</button></div>
+    <div id="chart"></div>
+  </section>
+
+  <section class="card">
+    <h2>지금 진입 신호 <span id="sigCount" class="mute"></span></h2>
+    <div class="ctrl">
+      <label><input type="checkbox" id="hideLow" checked> 저유동성 숨기기</label>
+      <label><input type="checkbox" id="topOnly"> 상위 3개 전략만</label>
+      <span class="mute">행을 누르면 차트가 열립니다. 가격은 신호 시점 기준이니 주문 전 현재가를 꼭 확인하세요.</span>
+    </div>
+    <div class="scroll"><table id="sigT"><thead><tr>
+      <th>코인</th><th class="l">매매법</th><th>점수</th><th>현재가</th><th>손절</th><th>손절폭</th><th>1차 익절(½)</th><th>최종 익절</th><th>권장 금액</th><th>24h 거래대금</th><th class="l">메모</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="card">
+    <h2>전략 순위 <span class="mute" id="btInfo"></span></h2>
+    <div class="scroll"><table id="stT"><thead><tr>
+      <th>#</th><th class="l">매매법</th><th>최종점수</th><th>거래</th><th>승률</th><th>평균/회</th><th>PF</th><th>24h 거래</th><th>24h 합계</th><th>국면적합</th><th class="l">핵심 규칙</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <div class="grid2">
+    <section class="card">
+      <h2>돌파 대기 (아직 신호 전)</h2>
+      <div class="scroll"><table id="wT"><thead><tr><th>코인</th><th class="l">매매법</th><th>현재가</th><th>돌파 기준</th><th>거리</th></tr></thead><tbody></tbody></table></div>
+    </section>
+    <section class="card">
+      <h2>24시간 상승률 상위</h2>
+      <div class="scroll"><table id="mT"><thead><tr><th>코인</th><th>24h</th><th>거래대금</th></tr></thead><tbody></tbody></table></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <details><summary><b>최근 백테스트 거래 내역</b> <span class="mute">(수수료 포함)</span></summary>
+      <div class="scroll"><table id="tT"><thead><tr><th>진입 시각</th><th>코인</th><th class="l">매매법</th><th>수익률</th><th>R</th><th class="l">청산 사유</th><th>보유(봉)</th></tr></thead><tbody></tbody></table></div>
+    </details>
+  </section>
+
+  <footer>이 프로그램은 신호만 보여 주고 주문은 하지 않습니다. 백테스트 성과는 과거 데이터 기준이며 앞으로의 수익을 보장하지 않습니다. 매매 판단과 책임은 본인에게 있습니다.</footer>
+</main>
+
+<script>
+const $=s=>document.querySelector(s);
+let R=null, chart=null, lastSigKeys=new Set(), noti=false;
+const fmt=(x,d)=>x==null?'-':(Math.abs(x)>=1000?x.toLocaleString(undefined,{maximumFractionDigits:2}):(+x).toPrecision(d||5));
+const pct=(x,d=2)=>x==null?'-':(x>0?'+':'')+x.toFixed(d)+'%';
+const usd=x=>x==null?'-':'$'+(x>=1e9?(x/1e9).toFixed(2)+'B':x>=1e6?(x/1e6).toFixed(1)+'M':x>=1e3?(x/1e3).toFixed(0)+'K':x.toFixed(0));
+const cls=x=>x>0?'up':(x<0?'down':'');
+const fam={breakout:'돌파',pullback:'눌림/추세',momentum:'모멘텀',reversal:'반전'};
+
+async function poll(){
+  try{
+    const s=await (await fetch('/api/status')).json();
+    $('#step').textContent=(s.running?'진행: ':'')+s.step+(s.total?` (${s.done}/${s.total})`:'')+(s.error?' — '+s.error:'');
+    $('#prog').style.width=s.total?(100*s.done/s.total)+'%':(s.running?'5%':'0');
+    $('#btnScan').disabled=s.running;
+    $('#btnAuto').textContent='자동(5분): '+(s.auto?'켜짐':'꺼짐');
+    if(!R || (s.last && s.last!==R.time)){ await load(); }
+  }catch(e){ $('#step').textContent='서버 연결 끊김 — app.py 실행 중인지 확인'; }
+}
+async function load(){
+  const r=await (await fetch('/api/result')).json();
+  if(!r.time) return; R=r; render();
+}
+function render(){
+  const g=R.regime, p=R.pick;
+  $('#sub').textContent=`마지막 스캔 ${new Date(R.time).toLocaleString()} · ${R.scanned}/${R.total_products}개 코인 · ${R.elapsed.toFixed(0)}초 · 수수료 ${R.config.fee}%/회`;
+  $('#warn').style.display=g.warning?'block':'none'; $('#warn').textContent=g.warning||'';
+  $('#regime').innerHTML=`<div class="big ${g.label=='상승'?'up':g.label=='하락'?'down':''}">${g.label}</div>
+   <div class="kv"><div><span>BTC</span>${fmt(g.btc,6)} <small class="${cls(g.btc_24h)}">${pct(g.btc_24h)}</small></div>
+   <div><span>변동성</span>${g.vol_state} (${g.vol_ratio.toFixed(2)}x)</div>
+   <div><span>1h 상승추세 코인</span>${g.breadth.toFixed(0)}% / ${g.liquid_count}개</div></div>`;
+  if(p){
+    const a=p.bt.all,d=p.bt.d1;
+    $('#pick').innerHTML=`<div class="big">${p.name} <span class="pill">${fam[p.family]}</span></div>
+     <div style="margin:6px 0">${p.comment}</div>
+     <div class="mute">${p.rule}</div>
+     <div class="kv"><div><span>최근 ${R.backtest.days}일</span>${a.n}회 · 승률 ${a.win.toFixed(0)}% · 평균 <b class="${cls(a.avg)}">${pct(a.avg)}</b></div>
+     <div><span>최근 24시간</span>${d.n}회 · 합계 <b class="${cls(d.sum)}">${pct(d.sum)}</b></div>
+     <div><span>국면 적합도</span>${p.fit>0?'+':''}${p.fit.toFixed(1)}</div>
+     <div><span>원본 영상</span><a href="${p.video}" target="_blank">보기</a></div></div>`;
+  }
+  $('#btInfo').textContent=`· 거래대금 상위 ${R.backtest.coins.length}개 코인, 최근 ${R.backtest.days}일 5분봉 (개장 돌파는 1분봉)`;
+  $('#stT tbody').innerHTML=R.strategies.map(s=>{const a=s.bt.all,d=s.bt.d1;return `<tr onclick="window.open('${s.video}')">
+    <td>${s.rank}</td><td class="l">${s.name} <span class="pill">${fam[s.family]}</span></td><td class="${cls(s.final)}">${s.final.toFixed(3)}</td>
+    <td>${a.n}</td><td>${a.n?a.win.toFixed(0)+'%':'-'}</td><td class="${cls(a.avg)}">${a.n?pct(a.avg):'-'}</td><td>${a.n?a.pf.toFixed(2):'-'}</td>
+    <td>${d.n}</td><td class="${cls(d.sum)}">${d.n?pct(d.sum):'-'}</td><td>${s.fit>0?'+':''}${s.fit.toFixed(1)}</td><td class="l mute" style="white-space:normal;min-width:280px">${s.rule}</td></tr>`}).join('');
+  renderPicks();
+  renderSignals();
+  $('#wT tbody').innerHTML=R.watch.slice(0,30).map(w=>`<tr onclick="openChart('${w.product}','${w.strategy}')"><td>${w.product}</td><td class="l">${w.name}</td><td>${fmt(w.price)}</td><td>${fmt(w.trigger)}</td><td>${pct(w.dist_pct)}</td></tr>`).join('')||'<tr><td colspan=5 class="mute">없음</td></tr>';
+  $('#mT tbody').innerHTML=R.movers.map(m=>`<tr onclick="openChart('${m.product}')"><td>${m.product}</td><td class="${cls(m.chg24)}">${pct(m.chg24)}</td><td>${usd(m.vol24)}</td></tr>`).join('');
+  $('#tT tbody').innerHTML=R.backtest.trades.map(t=>`<tr onclick="openChart('${t.product}','${t.strategy}')"><td>${new Date(t.entry_time).toLocaleString()}</td><td>${t.product}</td><td class="l">${(R.strategies.find(s=>s.id==t.strategy)||{}).name||t.strategy}</td><td class="${cls(t.pnl_pct)}">${pct(t.pnl_pct)}</td><td>${t.r_mult.toFixed(2)}</td><td class="l">${{stop:'손절',target:'목표가',exit_rule:'청산 규칙',breakeven:'본전',timeout:'시간초과',open:'보유중'}[t.reason]}</td><td>${t.bars}</td></tr>`).join('');
+  notify();
+}
+function renderPicks(){
+  const P=R.picks||[];
+  $('#pickTime').textContent='· '+new Date(R.time).toLocaleTimeString()+' 기준';
+  $('#verdict').innerHTML=`<b>${R.verdict||''}</b> <span class="mute">A 80점↑ · B 65점↑ · C 50점↑. 주문 전 현재가를 다시 확인하세요.</span>`;
+  $('#picks').innerHTML=P.map(s=>{const tp=s.tp2||s.tp1;return `<div class="pk" onclick="openChart('${s.product}','${s.strategy}')">
+   <div class="top"><b style="font-size:16px">${s.product}</b><span class="grade g${s.grade}">${s.grade} ${s.pick_score.toFixed(0)}</span></div>
+   <div class="mute" style="font-size:12px;margin:2px 0 8px">${s.name}${s.n_signals>1?` 외 ${s.n_signals-1}개`:''}</div>
+   <div class="row"><span>현재가</span><b>${fmt(s.price)}</b></div>
+   <div class="row"><span>손절</span><span class="down">${fmt(s.stop)} (-${s.risk_pct.toFixed(2)}%)</span></div>
+   <div class="row"><span>${s.tp2?'최종 익절':'1차 익절(½)'}</span><span class="up">${tp?fmt(tp)+` (${pct((tp/s.price-1)*100)})`:'규칙 청산'}</span></div>
+   ${s.tp1&&s.tp2?`<div class="row"><span>1차 익절(½)</span><span class="up">${fmt(s.tp1)}</span></div>`:''}
+   <div class="row"><span>손익비(수수료 후)</span><span>${s.rr_net!=null?'1:'+s.rr_net.toFixed(1):'-'}</span></div>
+   <div class="row"><span>권장 금액</span><b>${usd(s.size_usd)}</b></div>
+   <div class="row"><span>손절 시 / 목표 시</span><span><span class="down">-$${s.loss_usd.toFixed(0)}</span> / ${s.gain_usd!=null?`<span class="${cls(s.gain_usd)}">${s.gain_usd>=0?'+':'-'}$${Math.abs(s.gain_usd).toFixed(0)}</span>`:'<span class="mute">규칙 청산</span>'}</span></div>
+   <ul>${s.why.map(w=>`<li>${w}</li>`).join('')}${s.risks.map(w=>`<li class="r">${w}</li>`).join('')}</ul>
+   <div class="mute" style="font-size:11px;margin-top:6px">청산: ${s.exit_rule.split('. ').slice(-1)[0]}</div>
+  </div>`}).join('')||'<div class="mute">지금 조건을 만족한 코인이 없습니다.</div>';
+}
+function renderSignals(){
+  if(!R) return;
+  const top3=new Set(R.strategies.slice(0,3).map(s=>s.id));
+  let rows=R.signals.filter(s=>!($('#hideLow').checked&&s.low_liq)).filter(s=>!$('#topOnly').checked||top3.has(s.strategy));
+  $('#sigCount').textContent=`${rows.length}개`;
+  $('#sigT tbody').innerHTML=rows.slice(0,80).map(s=>`<tr onclick="openChart('${s.product}','${s.strategy}')">
+   <td><b>${s.product}</b></td><td class="l">${s.name} <span class="pill">#${s.strat_rank}</span></td><td><b>${s.score.toFixed(0)}</b></td>
+   <td>${fmt(s.price)}</td><td class="down">${fmt(s.stop)}</td><td>-${s.risk_pct.toFixed(2)}%</td>
+   <td class="up">${fmt(s.tp1)}</td><td class="up">${s.tp2?fmt(s.tp2):'<span class="mute">규칙 청산</span>'}</td>
+   <td>${usd(s.size_usd)}</td><td>${usd(s.vol24)}</td><td class="l">${s.notes.map(n=>`<span class="pill w">${n}</span>`).join('')}</td></tr>`).join('')
+   ||'<tr><td colspan=11 class="mute">지금 조건을 만족한 신호가 없습니다. 기다리는 것도 매매입니다.</td></tr>';
+}
+async function openChart(product,strategy){
+  const c=await (await fetch(`/api/chart?product=${encodeURIComponent(product)}&strategy=${strategy||''}`)).json();
+  if(!c.candles) return;
+  $('#chartBox').style.display='block';
+  const el=$('#chart'); el.innerHTML='';
+  const dark=matchMedia('(prefers-color-scheme: dark)').matches;
+  chart=LightweightCharts.createChart(el,{height:420,layout:{background:{color:'transparent'},textColor:dark?'#c9cdd6':'#333'},
+    grid:{vertLines:{color:dark?'#222733':'#eee'},horzLines:{color:dark?'#222733':'#eee'}},timeScale:{timeVisible:true}});
+  const cs=chart.addCandlestickSeries({upColor:'#22c55e',downColor:'#ef4444',wickUpColor:'#22c55e',wickDownColor:'#ef4444',borderVisible:false});
+  cs.setData(c.candles.map(k=>({...k,time:k.time+tzOff(k.time)})));
+  const colors={sma20:'#f59e0b',sma50:'#a855f7',sma200:'#94a3b8',hma100:'#06b6d4',vwap:'#ec4899'};
+  for(const [k,col] of Object.entries(colors)) if(c.lines[k]) chart.addLineSeries({color:col,lineWidth:1,priceLineVisible:false,lastValueVisible:false,title:k}).setData(c.lines[k].map(v=>({...v,time:v.time+tzOff(v.time)})));
+  if(c.markers.length) cs.setMarkers(c.markers.map(m=>({...m,time:m.time+tzOff(m.time)})));
+  const s=R&&R.signals.find(x=>x.product==product&&x.strategy==strategy);
+  if(s){cs.createPriceLine({price:s.stop,color:'#ef4444',title:'손절'});
+    if(s.tp1) cs.createPriceLine({price:s.tp1,color:'#22c55e',title:'1차 익절'});
+    if(s.tp2) cs.createPriceLine({price:s.tp2,color:'#16a34a',title:'최종 익절'});}
+  $('#chartTitle').textContent=product+' · 5분봉';
+  $('#chartInfo').textContent=s?`${s.name} — ${s.exit_rule}`:(strategy?'초록 화살표 = 이 매매법의 과거 신호':'');
+  $('#chartBox').scrollIntoView({behavior:'smooth'});
+}
+const tzOff=t=>-new Date(t*1000).getTimezoneOffset()*60;
+function closeChart(){$('#chartBox').style.display='none'}
+function notify(){
+  const keys=new Set(R.signals.filter(s=>!s.low_liq&&s.score>=70).map(s=>s.product+s.strategy+s.signal_time));
+  if(noti&&lastSigKeys.size) for(const k of keys) if(!lastSigKeys.has(k)){
+    const s=R.signals.find(x=>x.product+x.strategy+x.signal_time==k);
+    new Notification(`${s.product} · ${s.name}`,{body:`점수 ${s.score.toFixed(0)} / 손절 -${s.risk_pct.toFixed(2)}%`});
+  }
+  lastSigKeys=keys;
+}
+$('#btnScan').onclick=async()=>{await fetch('/api/scan',{method:'POST'});poll();};
+$('#btnAuto').onclick=async()=>{await fetch('/api/auto',{method:'POST'});poll();};
+$('#btnNoti').onclick=async()=>{if(!('Notification' in window))return;noti=(await Notification.requestPermission())=='granted';$('#btnNoti').textContent=noti?'알림 켜짐':'알림 거부됨';};
+$('#hideLow').onchange=renderSignals; $('#topOnly').onchange=renderSignals;
+poll(); setInterval(poll,3000);
+</script>
+</body>
+</html>
